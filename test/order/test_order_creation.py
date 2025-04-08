@@ -1,8 +1,5 @@
 import unittest
-from uuid import UUID, uuid4
-from datetime import datetime
-
-from domain.entities.order import Order, OrderItem
+from uuid import uuid4
 from domain.entities.customer import Customer
 from domain.entities.product import Product
 from application.interfaces.dto import OrderDTO, OrderItemDTO
