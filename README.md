@@ -58,7 +58,7 @@ app/
 pip install -r requirements.txt
 
 # アプリケーションの実行
-python run.py
+python main.py
 ```
 
 アプリケーションは次のURLで実行されます：http://localhost:8000
@@ -67,7 +67,6 @@ APIドキュメントは次のURLで確認できます：http://localhost:8000/d
 
 ## API エンドポイント
 
-- `GET /api/sample_data`: サンプルデータ（顧客、製品）を取得
 - `POST /api/orders`: 新しい注文を作成
 - `GET /api/orders/{order_id}`: 特定の注文を取得
 - `GET /api/customers/{customer_id}/orders`: 顧客の全注文を取得
