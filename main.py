@@ -1,32 +1,35 @@
-from fastapi import FastAPI, Depends, HTTPException
-from typing import List, Dict, Any
 import uvicorn
-from pydantic import BaseModel
+from fastapi import FastAPI
 
-from dependencies import get_order_controller
-from adapters.controllers.order_controller import OrderController
+from config.environment import env
+from presentation.controllers.order_controller import OrderRouter
+from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="ドメイン駆動設計サンプルアプリ")
+# アプリケーション作成
+app = FastAPI(title=env.APP_NAME)
 
-class OrderItemModel(BaseModel):
-    product_id: str
-    quantity: int
+# CORSミドルウェアの設定
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    # development環境以外ではallow_credentialsをTrueに設定
+    allow_credentials=True if env.APP_ENV != "development" else False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-class CreateOrderRequest(BaseModel):
-    customer_id: str
-    items: List[OrderItemModel]
+# APIルートを登録
+app.include_router(OrderRouter, prefix="/api")
 
-@app.post("/orders", response_model=Dict[str, Any])
-async def create_order(
-    request: CreateOrderRequest,
-    order_controller: OrderController = Depends(get_order_controller)
-):
-    """注文を作成するエンドポイント"""
-    try:
-        items = [{"product_id": item.product_id, "quantity": item.quantity} for item in request.items]
-        return order_controller.create_order(request.customer_id, items)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+@app.get("/", tags=["root"])
+async def root():
+    return {
+        "message": f"{env.APP_NAME} API",
+        "version": env.API_VERSION,
+        "environment": env.APP_ENV,
+        "using_mock": env.USE_MOCK_DB,
+        "database_url": env.DATABASE_URL
+    }
 
 if __name__ == "__main__":
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=env.DEBUG_MODE)

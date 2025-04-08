@@ -1,45 +1,43 @@
+from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List
+from typing import List, Optional
+from uuid import UUID, uuid4
 
+
+@dataclass
 class OrderItem:
-    def __init__(self, product_id: str, quantity: int, order: 'Order'):
-        self.product_id = product_id
-        self.quantity = quantity
-        self.order = order  # Orderへの参照
-
-class Order:
-    def __init__(self, order_id: str, customer_id: str):
-        self.order_id = order_id  # 識別子 (不変)
-        self.customer_id = customer_id
-        self._status = "PENDING"
-        self._version = 0  # 楽観的排他制御用
-        self.items = []  # 注文アイテムのリスト
-        self._pending_events = []  # ドメインイベントのリスト
-
+    """注文アイテムエンティティ"""
+    product_id: UUID
+    quantity: int
+    price_per_unit: float
+    
     @property
-    def status(self):
-        return self._status
+    def total_price(self) -> float:
+        return self.quantity * self.price_per_unit
 
-    def change_status(self, new_status: str):
-        if self._status == "CANCELLED":
-            raise ValueError("キャンセルされた注文は変更できません")
-        self._status = new_status
-        self._version += 1
 
-    def add_item(self, product_id: str, quantity: int):
-        item = OrderItem(product_id=product_id, quantity=quantity, order=self)
+@dataclass
+class Order:
+    """注文エンティティ"""
+    id: UUID = field(default_factory=uuid4)
+    customer_id: UUID = None
+    items: List[OrderItem] = field(default_factory=list)
+    status: str = "PENDING"  # PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED
+    created_at: datetime = field(default_factory=datetime.now)
+    updated_at: Optional[datetime] = None
+    
+    @property
+    def total_amount(self) -> float:
+        return sum(item.total_price for item in self.items)
+    
+    def add_item(self, item: OrderItem) -> None:
         self.items.append(item)
-        return item
-
-    def ship(self, tracking_number: str):
-        from domain.events.order_events import OrderShippedEvent
-        self.change_status("SHIPPED")
-        self._pending_events.append(
-            OrderShippedEvent(self.order_id, datetime.now(), tracking_number)
-        )
-
-    def get_pending_events(self):
-        return self._pending_events.copy()  # コピーを返す
-
-    def clear_events(self):
-        self._pending_events.clear() 
+        self.updated_at = datetime.now()
+        
+    def remove_item(self, product_id: UUID) -> None:
+        self.items = [item for item in self.items if item.product_id != product_id]
+        self.updated_at = datetime.now()
+        
+    def update_status(self, status: str) -> None:
+        self.status = status
+        self.updated_at = datetime.now() 
